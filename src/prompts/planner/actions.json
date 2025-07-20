@@ -1,0 +1,70 @@
+[
+    {
+        "name": "createTask",
+        "description": "Create a new task with title and description",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The title of the task to create"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "The detailed description of the task to create"
+                }
+            },
+            "required": [
+                "title",
+                "description"
+            ]
+        }
+    },
+    {
+        "name": "deleteTask",
+        "description": "Delete an existing task",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The title of the task to delete"
+                }
+            },
+            "required": [
+                "title"
+            ]
+        }
+    },
+{
+    "name": "get_weather",
+    "description": "Get current weather for a city.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "city": {
+          "type": "string",
+          "description": "The name of the city to get the weather for."
+        }
+      },
+      "required": ["city"]
+    }
+  }, 
+  {
+  "name": "get_nutrition",
+  "description": "Get nutrition facts for a food item",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "food": {
+        "type": "string",
+        "description": "The name of the food (e.g. banana, chicken breast)"
+      }
+    },
+    "required": ["food"]
+  }
+}
+]
+
+
+
