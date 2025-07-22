@@ -22,6 +22,24 @@
         "full": "full description for teams-ai-agent"
     },
     "accentColor": "#FFFFFF",
+    "webApplicationInfo": {
+        "id": "${{BOT_ID}}",
+        "resource": "https://AnyString"
+    },
+    "authorization": {
+        "permissions": {
+            "resourceSpecific": [
+                {
+                    "type": "Application",
+                    "name": "ChannelMessage.Read.Group"
+                },
+                {
+                    "type": "Application",
+                    "name": "ChatMessage.Read.Chat"
+                }
+            ]
+        }
+    },
     "bots": [
         {
             "botId": "${{BOT_ID}}",
