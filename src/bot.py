@@ -15,6 +15,10 @@ from teams.ai.planners import ActionPlanner, ActionPlannerOptions
 from teams.ai.prompts import PromptManager, PromptManagerOptions
 from teams.state import TurnState
 from teams.feedback_loop_data import FeedbackLoopData
+from botbuilder.schema import Mention, Activity
+from typing import List
+import json
+from pathlib import Path
 
 from config import Config
 
@@ -47,9 +51,53 @@ bot_app = Application[AppTurnState](
     )
 )
 
+def is_bot_mentioned(context: TurnContext) -> bool:
+    bot_id = (context.activity.recipient.id or "").lower()
+    mentions = TurnContext.get_mentions(context.activity)
+
+    for m in mentions:
+        mentioned_data = None
+        if hasattr(m, "additional_properties"):
+            mentioned_data = m.additional_properties.get("mentioned")
+        
+        if mentioned_data and (mentioned_data.get("id") or "").lower() == bot_id:
+            return True
+
+    return False
+
+
 @bot_app.turn_state_factory
 async def turn_state_factory(context: TurnContext):
     return await AppTurnState.load(context, storage)
+
+@bot_app.activity("message")
+async def on_message_activity(context: TurnContext, state: AppTurnState):
+    """
+    Stores all messages but only allows bot responses when mentioned.
+    """
+
+    if not hasattr(state.conversation, 'all_messages'):
+        state.conversation.all_messages = []
+
+    state.conversation.all_messages.append({
+        "from": context.activity.from_property.name,
+        "text": context.activity.text,
+        "timestamp": str(context.activity.timestamp)
+    })
+    
+    print(f"Message stored: {context.activity.text}")
+    print(f"All stored messages: {state.conversation.all_messages}")
+
+    # Only respond when bot is mentioned (in group chats)
+    if context.activity.conversation.conversation_type != "personal":
+        if not is_bot_mentioned(context):
+            print("Bot not mentioned - not responding.")
+            return False  # Prevent response but keep storing messages
+
+    print("Bot mentioned or 1:1 chat. Proceeding with normal Teams AI logic.")
+    await bot_app.ai.run(context, state)
+    return True
+
 
 @bot_app.ai.action("createTask")
 async def create_task(context: ActionTurnContext[Dict[str, Any]], state: AppTurnState):
