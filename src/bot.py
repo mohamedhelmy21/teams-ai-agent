@@ -78,12 +78,24 @@ async def on_message_activity(context: TurnContext, state: AppTurnState):
 
     if not hasattr(state.conversation, 'all_messages'):
         state.conversation.all_messages = []
+    
+    if not hasattr(state.conversation, 'history_snippet'):
+        state.conversation.history_snippet = []
 
-    state.conversation.all_messages.append({
+    # Store the current message
+    message_data = {
         "from": context.activity.from_property.name,
         "text": context.activity.text,
         "timestamp": str(context.activity.timestamp)
-    })
+    }
+    
+    # Add to both full history and snippet
+    state.conversation.all_messages.append(message_data)
+    state.conversation.history_snippet.append(message_data)
+    
+    # Maintain rolling window of 20 messages
+    if len(state.conversation.history_snippet) > 20:
+        state.conversation.history_snippet.pop(0) 
     
     print(f"Message stored: {context.activity.text}")
     print(f"All stored messages: {state.conversation.all_messages}")
