@@ -19,10 +19,17 @@ from botbuilder.schema import Mention, Activity
 from typing import List
 import json
 from pathlib import Path
+import tiktoken
 
 from config import Config
 
 config = Config()
+
+# Token management constants
+MAX_HISTORY_TOKENS = 4000
+SAFETY_BUFFER_TOKENS = 100
+
+enc = tiktoken.get_encoding("cl100k_base")
 
 # Create AI components
 model: OpenAIModel
@@ -82,6 +89,9 @@ async def on_message_activity(context: TurnContext, state: AppTurnState):
     if not hasattr(state.conversation, 'history_snippet'):
         state.conversation.history_snippet = []
 
+        if not hasattr(state.conversation, 'history_snippet_tokens'):
+            state.conversation.history_snippet_tokens = 0
+
     # Store the current message
     message_data = {
         "from": context.activity.from_property.name,
@@ -91,14 +101,35 @@ async def on_message_activity(context: TurnContext, state: AppTurnState):
     
     # Add to both full history and snippet
     state.conversation.all_messages.append(message_data)
+
+    new_message_text = f"{message_data['from']}: {message_data['text']}"
+    new_message_tokens = len(enc.encode(new_message_text)) if enc else len(new_message_text) // 4
+
+    # 2. Ignore any single message that is too large to ever fit
+    if new_message_tokens > MAX_HISTORY_TOKENS:
+        print(f"Warning: Incoming message ({new_message_tokens} tokens) is larger than the entire limit and will be ignored.")
+        # Proceed to the AI call without adding this message to the snippet
+        await bot_app.ai.run(context, state)
+        return True
+
+    # 3. Make space for the new message by removing the oldest ones
+    # This loop ensures there's enough room BEFORE adding the new message.
+    while (state.conversation.history_snippet_tokens + new_message_tokens) > MAX_HISTORY_TOKENS and len(state.conversation.history_snippet) > 0:
+        oldest_message = state.conversation.history_snippet.pop(0)
+        
+        oldest_message_text = f"{oldest_message['from']}: {oldest_message['text']}"
+        oldest_message_tokens = len(enc.encode(oldest_message_text)) if enc else len(oldest_message_text) // 4
+        
+        state.conversation.history_snippet_tokens -= oldest_message_tokens
+
+    # 4. Add the new message now that space is guaranteed
     state.conversation.history_snippet.append(message_data)
-    
-    # Maintain rolling window of 20 messages
-    if len(state.conversation.history_snippet) > 20:
-        state.conversation.history_snippet.pop(0) 
+    state.conversation.history_snippet_tokens += new_message_tokens
     
     print(f"Message stored: {context.activity.text}")
     print(f"All stored messages: {state.conversation.all_messages}")
+    print(f"Current history snippet: {state.conversation.history_snippet}")
+    print(f"Current history snippet tokens length: {state.conversation.history_snippet_tokens}")
 
     # Only respond when bot is mentioned (in group chats)
     if context.activity.conversation.conversation_type != "personal":
